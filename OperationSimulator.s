@@ -48,6 +48,14 @@ main:
 	move $t0, $v1 		#$t0 conterrà l'indirizzo del carattere da cui continuare il parsing, ma non è necessario
 				# salvarlo dato che deve essere condiviso e modificato da ogni procedura
 
+	#calcolo velocemente a quale procedura saltare con la jump_table, mi evita di
+	#riscrivere per tutte le procedure il costrutto if than...else if...
+	add $t4, $v0, $v0
+	add $t4, $t4, $t4 	# ho calcolato jump_table[$v0]
+	lw $t5, jump_table($v0)
+
+endOfString:
+	#sout	 finale
 
 
 
@@ -98,7 +106,12 @@ loopParsing:
 	beq $t1, '\0', endOfString	#ignora la virgola
 
 
-
+	#se sono arrivato qui ho trovato un operando
+	addi $sp, $sp, -4
+	sw $t1, 0($sp)		#salvo nello stack l'operando
+ignore:
+	addi $a0, $a0, 1	# $a0 = offset
+	j loopParsing
 
 checkOperation: #individua l'operazione da svolgere
 	lb $t2, 0($t0) 		#$t2 = lettera iniziale da controllare per individuare l'operazione
@@ -154,8 +167,20 @@ executionSum:
 	jr $ra
 #-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
 
+#--------------------------  PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
+sottrazione:
+	#jal printOperation
+	jal parsing
+	beq $v0, -1, executionSub
+	add $t4, $v0, $v0
+	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
+	lw $t5, jump_table($v0)
 
- -------------------------------------------------------------------------------------------
+executionSub:
+	sub $t8, $t8, $t9
+	#e inserisci nello stack più o meno lo schema è questo
+	jr $ra
+#-------------------------- FINE PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
 
 #--------------------------  PROCEDURA PRODOTTO -------------------------------------------------------------------------------------------
 prodotto:
