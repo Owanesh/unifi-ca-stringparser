@@ -1,0 +1,258 @@
+
+# Legenda registri usati
+# $t0 = indirizzo del prossimo carattere da cui fa partire il parsing
+
+
+
+.data
+
+jump_table: .space 16 # jump table array a 4 word che verra' instanziata dal main con gli indirizzi delle label che chiameranno le corrispondenti procedure
+fnf:	.ascii  "The file was not found: "
+file:	.asciiz	"chiamate.txt"
+bufferString: .space 150
+
+
+.text
+.globl main
+main:	
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno (non ho usato altri registri)
+	sw $ra, 0($sp)
+	
+	jal readFunction	#procedura per salvare in buffer la stringa che rappresenta la funzione
+	
+	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
+	addi $sp, $sp, 4
+	
+	#prepara la jump_table con gli indirizzi delle case actions
+	la $t1, jump_table
+	la $t0, jumpSum	  
+	sw $t0, 0($t1)
+ 	la $t0, jumpSubtraction  
+	sw $t0, 4($t1)
+	la $t0, jumpMultiplication	  
+	sw $t0, 8($t1)
+	la $t0, jumpDivision	  
+	sw $t0, 12($t1)	 	  
+	  
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno (non mi interessa che $t0 e $t1 vengano modificati)
+	sw $ra, 0($sp)  
+	la $a0, bufferString	#bufferString = stringa che rappresenta la funzione, viene passato come argomento per la procedura parsing
+	jal parsing
+	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
+	addi $sp, $sp, 4
+	
+	#$v0 = codice con procedura da eseguire
+	#$v1 = indirizzo da cui continuare il parsing della stringa
+	move $t0, $v1 		#$t0 conterrà l'indirizzo del carattere da cui continuare il parsing, ma non è necessario
+				# salvarlo dato che deve essere condiviso e modificato da ogni procedura
+	
+	#calcolo velocemente a quale procedura saltare con la jump_table, mi evita di 
+	#riscrivere per tutte le procedure il costrutto if than...else if...
+	add $t4, $v0, $v0 
+	add $t4, $t4, $t4 	# ho calcolato jump_table[$v0]
+	lw $t5, jump_table($v0)
+	
+endOfString:
+	#sout	 finale
+	
+
+
+
+
+# costrutto switch per saltare alla giusta procedura da ogni procedura chiamante
+jumpSum:
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno 
+	sw $ra, 0($sp)  
+	jal somma
+	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
+	addi $sp, $sp, 4
+	jr $ra
+jumpSubtraction:	
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno 
+	sw $ra, 0($sp)  
+	jal sottrazione
+	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
+	addi $sp, $sp, 4
+	jr $ra
+jumpMultiplication:
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno 
+	sw $ra, 0($sp)  
+	jal prodotto
+	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
+	addi $sp, $sp, 4
+	jr $ra
+jumpDivision:
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno 
+	sw $ra, 0($sp)  
+	jal divisione
+	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
+	addi $sp, $sp, 4
+	jr $ra
+	
+
+#--------------------------- PROCEDURA PARSING   ---------------------------------------------------------------------------------------
+#parsing: procedura che si occupa di analizzare la funzione e di invocare la giusta procedura
+parsing:	
+loopParsing:
+	#effettua il parsing della stringa
+	move $t0, $a0 		#salvo indirizzo del carattere iniziale, mi servira' dopo
+	lb $t1, 0($a0)		#leggo un carattere
+	beq $t1, '(', checkOperation	#se trovo una parentesi aperta devo capire che operazione dovro' svolgere
+	beq $t1, ')', execute	#se trovo una parentesi chiusa devo caricare gli operandi e tornare all'ultima procedura chiamata
+	beq $t1, ',', ignore	#ignora la virgola
+	bge $t1, 'a', ignore    #ignora un carattere
+	beq $t1, '\0', endOfString	#ignora la virgola
+	
+	
+	#se sono arrivato qui ho trovato un operando
+	addi $sp, $sp, -4
+	sw $t1, 0($sp)		#salvo nello stack l'operando
+ignore:
+	addi $a0, $a0, 1	# $a0 = offset
+	j loopParsing
+	
+checkOperation: #individua l'operazione da svolgere
+	lb $t2, 0($t0) 		#$t2 = lettera iniziale da controllare per individuare l'operazione
+	beq $t2, 'd', isDivision	#salto alla divisione
+	beq $t2, 'p', isMultiplication	#salto alla moltiplicazione
+	addi $t2, $t2, 2	#mi sposto di 2 caratteri (SOmma e SOttrazione hanno le prime due lettere uguali, la terza mi rivela che operazione devo fare)
+	beq $t2, 'm', isSum	# salto alla somma
+	beq $t2, 't', isSubtraction #per esclusione salto a sottrazione (eseguo comunque il controllo)
+	
+# isSum, isSubtraction ecc consentono di ritornare alla procedura chiamante con un valore di ritorno
+# che rappresenta la prossima procedura da chiamare, in particolare
+# 0 -> Somma, 1 -> Sottrazione, 2 -> Moltiplicazione, 3 -> Divisione
+isSum:
+	addiu $v0, $zero, 0
+	jr $ra
+isSubtraction:
+	addiu $v0, $zero, 1
+	jr $ra
+isMultiplication:
+	addiu $v0, $zero, 2
+	jr $ra
+isDivision:
+	addiu $v0, $zero, 3
+	jr $ra
+# ho trovato una parentesi chiusa, devo eseguire l'operazione associata alla procedura chiamante
+# ritorno -1 perche' non devo chiamare altre procedure
+execute:	
+	addiu $v0, $zero, -1
+	jr $ra
+
+#------------------------  FINE PROCEDURA PARSING -------------------------------------------------------------------------------------
+
+	
+	
+
+	
+
+#--------------------------  PROCEDURA SOMMA -------------------------------------------------------------------------------------------
+somma:
+	#jal printOperation
+	la $a0, bufferString	#bufferString = stringa che rappresenta la funzione, viene passato come argomento per la procedura parsing
+	jal parsing
+	beq $v0, -1, executionSum
+	#calcolo velocemente a quale procedura saltare con la jump_table, mi evita di 
+	#riscrivere per tutte le procedure il costrutto if than...else if...
+	add $t4, $v0, $v0 
+	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
+	lw $t5, jump_table($v0)
+	 
+executionSum: 
+	add $t8, $t8, $t9
+	#e inserisci nello stack più o meno lo schema è questo
+	jr $ra
+#-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
+
+#--------------------------  PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
+sottrazione:
+	#jal printOperation
+	jal parsing
+	beq $v0, -1, executionSub
+	add $t4, $v0, $v0 
+	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
+	lw $t5, jump_table($v0)
+	 
+executionSub: 
+	sub $t8, $t8, $t9
+	#e inserisci nello stack più o meno lo schema è questo
+	jr $ra
+#-------------------------- FINE PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
+
+#--------------------------  PROCEDURA PRODOTTO -------------------------------------------------------------------------------------------
+prodotto:
+	#jal printOperation
+	jal parsing
+	beq $v0, -1, executionMul
+	add $t4, $v0, $v0 
+	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
+	lw $t5, jump_table($v0)
+	 
+executionMul: 
+	mul $t8, $t8, $t9
+	#e inserisci nello stack più o meno lo schema è questo
+	jr $ra
+#-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
+
+#--------------------------  PROCEDURA DIVISIONE -------------------------------------------------------------------------------------------
+divisione:
+	#jal printOperation
+	jal parsing
+	beq $v0, -1, executionDiv
+	add $t4, $v0, $v0 
+	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
+	lw $t5, jump_table($v0)
+	 
+executionDiv: 
+	div $t8, $t8, $t9
+	#e inserisci nello stack più o meno lo schema è questo
+	jr $ra
+#-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
+
+
+
+#--------------------------  PROCEDURA PRINT OPERATION -------------------------------------------------------------------------------------------	  
+	
+printOperation:
+	
+#-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
+	
+	
+	
+	
+	
+#--------------------------  PROCEDURA READ FUNCTION -------------------------------------------------------------------------------------------
+	
+#readFuntion: procedura per apertura del file e caricamento della stringa che rappresenta la funzione	
+readFunction:
+	# Open File
+	li	$v0, 13		# Open File Syscall
+	la	$a0, file	# Load File Name
+	li	$a1, 0		# Read-only Flag
+	li	$a2, 0		# (ignored)
+	syscall
+	move	$t0, $v0	# Save File Descriptor
+	blt	$v0, 0, err	# Goto Error
+
+	# Read Data
+	li	$v0, 14		# Read File Syscall
+	move	$a0, $t0	# Load File Descriptor
+	la	$a1, bufferString  # Load Buffer Address
+	li	$a2, 150	# Buffer Size
+	syscall
+
+	# Close File
+	li	$v0, 16		# Close File Syscall
+	move	$a0, $t0	# Load File Descriptor
+	syscall
+	jr $ra
+
+	# Error
+err:
+	li	$v0, 4		# Print String Syscall
+	la	$a0, fnf	# Load Error String
+	syscall
+	li      $v0, 10		#termino esecuzione
+	syscall
+#-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
