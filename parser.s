@@ -48,8 +48,10 @@ main:
 	#calcolo velocemente a quale procedura saltare con la jump_table, mi evita di
 	#riscrivere per tutte le procedure il costrutto if than...else if...
 	add $t4, $v0, $v0
-	add $t4, $t4, $t4 	# ho calcolato jump_table[$v0]
-	lw $t5, jump_table($v0)
+	add $t4, $t4, $t4 	
+	lw $t5, jump_table($t4) # ho calcolato jump_table[$v0], $t5 contiene indirizzo della case action a cui saltare
+	jr $t5
+	
 
 # costrutto switch per saltare alla giusta procedura da ogni procedura chiamante
 jumpSum:
@@ -95,9 +97,7 @@ loopParsing:
 	beq $t1, ')', execute	#se trovo una parentesi chiusa devo caricare gli operandi e tornare all'ultima procedura chiamata
 	beq $t1, ',', ignore	#ignora la virgola
 	bge $t1, 'a', ignore    #ignora un carattere
-	bge $t1, '0', saveNumber  # salviamo l’operando letto nello Stack (se siamo arrivati qui è per forza un numero) 
 	beq $t1, $zero, endOfString	#ignora la virgola
-
 
 	#se sono arrivato qui ho trovato un operando
 	addi $sp, $sp, -4
@@ -114,69 +114,58 @@ checkOperation: #individua l'operazione da svolgere
 	beq $t2, 'm', isSum	# salto alla somma
 	beq $t2, 't', isSubtraction #per esclusione salto a sottrazione (eseguo comunque il controllo)
 
-# isSum, isSubtraction ecc consentono di ritornare alla procedura chiamante con un valore di ritorno
+# isSum, isSubtraction ecc consentono di ritornare alla procedura chiamante con un valore di ritorno ($v0)
 # che rappresenta la prossima procedura da chiamare, in particolare
 # 0 -> Somma, 1 -> Sottrazione, 2 -> Moltiplicazione, 3 -> Divisione
 isSum:
 	addiu $v0, $zero, 0
-	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing
+	add $a0,$a0,1	# $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel prossimo parsing
 	jr $ra
 isSubtraction:
 	addiu $v0, $zero, 1
 	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel prossimo parsing
 	jr $ra
 isMultiplication:
 	addiu $v0, $zero, 2
 	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing	
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel prossimo parsing	
 	jr $ra
 isDivision:
 	addiu $v0, $zero, 3
 	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing	
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel prossimo parsing	
 	jr $ra 
 # ho trovato una parentesi chiusa, devo eseguire l'operazione associata alla procedura chiamante
 # ritorno -1 perche' non devo chiamare altre procedure
 execute:
 	addiu $v0, $zero, -1
-	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel prossimo parsing
 	jr $ra
-saveNumber:
-	addi $sp, $sp, -4
-	subi $t1, $t1, -40
-	j loopParsing
-	
-	
-	
 	
 
 #------------------------  FINE PROCEDURA PARSING -------------------------------------------------------------------------------------
 
 
 
-
-
-
 #--------------------------  PROCEDURA SOMMA -------------------------------------------------------------------------------------------
 somma:
-	#jal printOperation
+
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
-	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing
+	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing, è l'unico argomento della procedura parsing
 	jal parsing
 	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	beq $v0, -1, executionSum
-	#calcolo velocemente a quale procedura saltare con la jump_table, mi evita di
-	#riscrivere per tutte le procedure il costrutto if than...else if...
+	beq $v0, -1, executionSum    #if( $v0 == -1) salta a executionSum
+				     #else devo chiamare una sottoprocedura
 	add $t4, $v0, $v0
-	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
-	lw $t5, jump_table($v0)
-
+	add $t4, $t4, $t4
+	lw $t5, jump_table($t4) # ho calcolato jump_table[$v0], $t5 contiene indirizzo della case action a cui saltare
+	jr $t5
 executionSum:
 	add $t8, $t8, $t9
 	
@@ -188,19 +177,21 @@ executionSum:
 
 #--------------------------  PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
 sottrazione:
-	#jal printOperation
+
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
-	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing
+	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing, è l'unico argomento della procedura parsing
 	jal parsing
 	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	beq $v0, -1, executionSub
+	beq $v0, -1, executionSub    #if( $v0 == -1) salta a executionSub
+				     #else devo chiamare una sottoprocedura
 	add $t4, $v0, $v0
-	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
-	lw $t5, jump_table($v0)
+	add $t4, $t4, $t4 
+	lw $t5, jump_table($t4) # ho calcolato jump_table[$v0], $t5 contiene indirizzo della case action a cui saltare
+	jr $t5
 
 executionSub:
 	sub $t8, $t8, $t9
@@ -211,19 +202,21 @@ executionSub:
 
 #--------------------------  PROCEDURA PRODOTTO -------------------------------------------------------------------------------------------
 prodotto:
-	#jal printOperation
+
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
-	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing
+	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing, è l'unico argomento della procedura parsing
 	jal parsing
 	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	beq $v0, -1, executionMul
+	beq $v0, -1, executionMul    #if( $v0 == -1) salta a executionMul
+				     #else devo chiamare una sottoprocedura
 	add $t4, $v0, $v0
-	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
-	lw $t5, jump_table($v0)
+	add $t4, $t4, $t4 
+	lw $t5, jump_table($t4) # ho calcolato jump_table[$v0], $t5 contiene indirizzo della case action a cui saltare
+	jr $t5
 
 executionMul:
 	mul $t8, $t8, $t9
@@ -233,19 +226,21 @@ executionMul:
 
 #--------------------------  PROCEDURA DIVISIONE -------------------------------------------------------------------------------------------
 divisione:
-	#jal printOperation
+
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
-	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing
+	lw $a0, puntatore	#puntatore = word che rappresenta l'indirizzo da cui continuare il parsing, è l'unico argomento della procedura parsing
 	jal parsing
 	lw $ra, 0($sp)		#ripristino indirizzo di ritorno
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	beq $v0, -1, executionDiv
+	beq $v0, -1, executionDiv    #if( $v0 == -1) salta a executionDiv
+				     #else devo chiamare una sottoprocedura
 	add $t4, $v0, $v0
-	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
-	lw $t5, jump_table($v0)
+	add $t4, $t4, $t4 
+	lw $t5, jump_table($t4) # ho calcolato jump_table[$v0], $t5 contiene indirizzo della case action a cui saltare
+	jr $t5
 
 executionDiv:
 	div $t8, $t8, $t9
