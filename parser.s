@@ -45,9 +45,6 @@ main:
 	addi $sp, $sp, 4	# e dealloco lo stack
 
 	#$v0 = codice con procedura da eseguire
-	#$v1 = indirizzo da cui continuare il parsing della stringa
-	sw $v1, puntatore	# la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing
-
 	#calcolo velocemente a quale procedura saltare con la jump_table, mi evita di
 	#riscrivere per tutte le procedure il costrutto if than...else if...
 	add $t4, $v0, $v0
@@ -91,13 +88,14 @@ endOfString:
 #--------------------------- PROCEDURA PARSING   ---------------------------------------------------------------------------------------
 #parsing: procedura che si occupa di analizzare la funzione e di invocare la giusta procedura
 parsing:
-move $t0, $a0 		#salvo indirizzo del carattere iniziale, mi servira' dopo
+	move $t0, $a0 		#salvo indirizzo del carattere iniziale, mi servira' dopo
 loopParsing:
 	lb $t1, 0($a0)		#leggo un carattere
 	beq $t1, '(', checkOperation	#se trovo una parentesi aperta devo capire che operazione dovro' svolgere
 	beq $t1, ')', execute	#se trovo una parentesi chiusa devo caricare gli operandi e tornare all'ultima procedura chiamata
 	beq $t1, ',', ignore	#ignora la virgola
 	bge $t1, 'a', ignore    #ignora un carattere
+	bge $t1, '0', saveNumber  # salviamo l’operando letto nello Stack (se siamo arrivati qui è per forza un numero) 
 	beq $t1, $zero, endOfString	#ignora la virgola
 
 
@@ -122,28 +120,37 @@ checkOperation: #individua l'operazione da svolgere
 isSum:
 	addiu $v0, $zero, 0
 	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	move $v1, $a0
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing
 	jr $ra
 isSubtraction:
 	addiu $v0, $zero, 1
 	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	move $v1, $a0
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing
 	jr $ra
 isMultiplication:
 	addiu $v0, $zero, 2
 	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	move $v1, $a0
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing	
 	jr $ra
 isDivision:
 	addiu $v0, $zero, 3
 	add $a0,$a0,1	#ritorno $a0 incrementato di un byte, perchè punta al prossimo carattere della stringa
-	move $v1, $a0
-	jr $ra
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing	
+	jr $ra 
 # ho trovato una parentesi chiusa, devo eseguire l'operazione associata alla procedura chiamante
 # ritorno -1 perche' non devo chiamare altre procedure
 execute:
 	addiu $v0, $zero, -1
+	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel parsing
 	jr $ra
+saveNumber:
+	addi $sp, $sp, -4
+	subi $t1, $t1, -40
+	j loopParsing
+	
+	
+	
+	
 
 #------------------------  FINE PROCEDURA PARSING -------------------------------------------------------------------------------------
 
@@ -163,8 +170,6 @@ somma:
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	#$v1 = indirizzo da cui continuare il parsing della stringa
-	sw $v1, puntatore	#salvo l'indirizzo, la prossima procedura saprà da dove ricominciare
 	beq $v0, -1, executionSum
 	#calcolo velocemente a quale procedura saltare con la jump_table, mi evita di
 	#riscrivere per tutte le procedure il costrutto if than...else if...
@@ -174,6 +179,8 @@ somma:
 
 executionSum:
 	add $t8, $t8, $t9
+	
+	
 	#e inserisci nello stack più o meno lo schema è questo
 
 	jr $ra
@@ -190,8 +197,6 @@ sottrazione:
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	#$v1 = indirizzo da cui continuare il parsing della stringa
-	sw $v1, puntatore	#salvo l'indirizzo, la prossima procedura saprà da dove ricominciare
 	beq $v0, -1, executionSub
 	add $t4, $v0, $v0
 	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
@@ -215,8 +220,6 @@ prodotto:
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	#$v1 = indirizzo da cui continuare il parsing della stringa
-	sw $v1, puntatore	#salvo l'indirizzo, la prossima procedura saprà da dove ricominciare
 	beq $v0, -1, executionMul
 	add $t4, $v0, $v0
 	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
@@ -239,8 +242,6 @@ divisione:
 	addi $sp, $sp, 4
 
 	#$v0 = codice con procedura da eseguire
-	#$v1 = indirizzo da cui continuare il parsing della stringa
-	sw $v1, puntatore	#salvo l'indirizzo, la prossima procedura saprà da dove ricominciare
 	beq $v0, -1, executionDiv
 	add $t4, $v0, $v0
 	add $t4, $t4, $t4 # ho calcolato jump_table[$v0]
