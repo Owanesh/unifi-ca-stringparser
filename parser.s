@@ -114,7 +114,7 @@ L1:
 	j loopParsing   # rieseguo il ciclo 
 	
 	
-isSubstraction:
+isSubtraction:
 	addi $a0, $a0, 12	#essendo una sottrazione, il carattere dopo la prima parentesi aperta la trovo tra 12 byte/caratteri
 	sw $a0, puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
@@ -139,7 +139,7 @@ isMultiplication:
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
 	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
 	sw $t8,0($sp)	   # salva il parametro d'invocazione
-	jal moltiplicazione
+	jal prodotto
 	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
@@ -154,7 +154,7 @@ L3:
 	j loopParsing   # rieseguo il ciclo 
 
 isDivision:
-	addi $a0, $a0, 12	#essendo una divisione, il carattere dopo la prima parentesi aperta la trovo tra 12 byte/caratteri
+	addi $a0, $a0, 10	#essendo una divisione, il carattere dopo la prima parentesi aperta la trovo tra 10 byte/caratteri
 	sw $a0, puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
 	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
@@ -195,6 +195,14 @@ execute:	# ho trovato una parentesi chiusa, sono qui per tornare alla procedura 
 
 #--------------------------  PROCEDURA SOMMA -------------------------------------------------------------------------------------------
 somma:
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
+	sw $ra, 0($sp)
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui cominciare a stampare
+	addi $a0, $a0, -6	# decremento di 6 byte/caratteri per tornare alla lettera 's'
+	jal printOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
+	addi $sp, $sp, 4	# e dealloco lo stack
+	
 	
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
@@ -208,10 +216,9 @@ somma:
 
 #--------------------------  PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
 sottrazione:
-
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
-	la $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jal parsing		#la procedura sottrazione richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
@@ -223,7 +230,7 @@ sottrazione:
 prodotto:
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
-	la $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jal parsing		#la procedura prodotto richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
@@ -235,19 +242,67 @@ prodotto:
 divisione:
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
-	la $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jal parsing		#la procedura divisione richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
-	div $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
+	div $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
+	mflo $v0
 	jr $ra
 #-------------------------- FINE PROCEDURA DIVISIONE -------------------------------------------------------------------------------------------
 
 
 
 #--------------------------  PROCEDURA PRINT OPERATION -------------------------------------------------------------------------------------------
-
+# printOperation: riceve un parametro contenente l'indirizzo del primo carattere della procedura, non ritorna niente.
+#		  Esegue un ciclo che termina quando il contatore torna a 0
 printOperation:
+	
+	addi $sp, $sp, -12
+	sw $s0, 0($sp)
+	sw $s1, 4($sp)
+	sw $s2, 8($sp)
+	move $s2, $zero	# $s2 = contatore di parentesi
+	move $s0, $a0	# $s0 = puntatore del prossimo carattere da leggere
+	loopPrimoCiclo:
+		lb  $s1, 0($s0)		#leggo un carattere
+		li $v0, 11		#stampo il carattere letto
+		move $a0, $s1
+		syscall
+		beq $s1, '(', exitLoop1
+		addi $s0, $s0, 1
+		j loopPrimoCiclo
+	exitLoop1:
+		addi $s2, $s2, 1 	#incrementa il contatore
+	
+	loopSecondoCiclo:
+		ble $s2, 0, exitLoop2	#esci dal ciclo se contatore <= 0
+		lb  $s1, 0($s0)		#leggo un carattere
+		li $v0, 11		#stampo il carattere letto
+		move $a0, $s1
+		syscall
+		addi $s0, $s0, 1	#incremento il puntatore
+		beq $s1, ')', decremento
+		beq $s1, '(', incremento
+		beq $s1, $zero, exitLoop2
+		
+	incremento:
+		addi $s2, $s2, 1	#incrementa il contatore
+		j loopSecondoCiclo
+	decremento:
+		addi $s2, $s2, -1	#decremento il contatore
+		j loopSecondoCiclo
+		
+	exitLoop2:
+	
+	lw $s2, 8($sp)	#ripritino valori di ritorno
+	lw $s1, 4($sp)
+	lw $s0, 0($sp)	
+	addi $sp, $sp, 12
+	jr $ra
+		
+		
+	
 
 #-------------------------- FINE PROCEDURA PRINT OPERATION -------------------------------------------------------------------------------------------
 
