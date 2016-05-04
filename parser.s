@@ -273,6 +273,7 @@ printOperation:
 		addi $s0, $s0, 1
 		j loopPrimoCiclo
 	exitLoop1:
+		addi $s0, $s0, 1
 		addi $s2, $s2, 1 	#incrementa il contatore
 	
 	loopSecondoCiclo:
