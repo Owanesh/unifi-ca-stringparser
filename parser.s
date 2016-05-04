@@ -51,7 +51,7 @@ parsing:
 	sw $s0, 0($sp)		#salvo il valore di $s0, dato che all'inizio $s0 sarà uguale a 0 (non ho ancora raggiunto la virgola ovviamente)
 	move $s0, $zero
 loopParsing:
-	lb $t1, 0($a0)		#leggo un carattere
+	lb  $t1, 0($a0)		#leggo un carattere
 	beq $t1, ' ', ignore	#se trovo uno spazio la ignoro
 	beq $t1, '(', ignore	#se trovo una parentesi aperta la ignoro
 	beq $t1, ')', execute	#se trovo una parentesi chiusa devo eseguire l'operazione ritornando alla procedura chiamante
@@ -114,9 +114,9 @@ L1:
 	j loopParsing   # rieseguo il ciclo 
 	
 	
-	
-isSubtraction:
+isSubstraction:
 	addi $a0, $a0, 12	#essendo una sottrazione, il carattere dopo la prima parentesi aperta la trovo tra 12 byte/caratteri
+	sw $a0, puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
 	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
 	sw $t8,0($sp)	   # salva il parametro d'invocazione
@@ -125,32 +125,37 @@ isSubtraction:
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
 	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, insertOperando2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	beq $s0, 1, L2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $v0	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	move $t8, $t1	# copio il risultato in $t8 (primo operando)
 	j loopParsing   # rieseguo il ciclo 
-
-
-	
+L2:
+	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
+	j loopParsing   # rieseguo il ciclo 
+		
 isMultiplication:
-	addi $a0, $a0, 9	#essendo un prodotto, il carattere dopo la prima parentesi aperta la trovo tra 9 byte/caratteri
+	addi $a0, $a0, 9	#essendo una moltiplicazione, il carattere dopo la prima parentesi aperta la trovo tra 9 byte/caratteri
+	sw $a0, puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
 	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
 	sw $t8,0($sp)	   # salva il parametro d'invocazione
-	jal prodotto
+	jal moltiplicazione
 	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
 	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, insertOperando2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	beq $s0, 1, L3	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $v0	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	move $t8, $t1	# copio il risultato in $t8 (primo operando)
+	j loopParsing   # rieseguo il ciclo 
+	
+L3:
+	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
 	j loopParsing   # rieseguo il ciclo 
 
-	 
-	   
 isDivision:
-	addi $a0, $a0, 10	#essendo una divisione, il carattere dopo la prima parentesi aperta la trovo tra 10 byte/caratteri
+	addi $a0, $a0, 12	#essendo una divisione, il carattere dopo la prima parentesi aperta la trovo tra 12 byte/caratteri
+	sw $a0, puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
 	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
 	sw $t8,0($sp)	   # salva il parametro d'invocazione
@@ -159,11 +164,13 @@ isDivision:
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
 	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, insertOperando2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	beq $s0, 1, L4	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $v0	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	move $t8, $t1	# copio il risultato in $t8 (primo operando)
 	j loopParsing   # rieseguo il ciclo 
-
+L4:
+	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
+	j loopParsing   # rieseguo il ciclo 
 
 	
 insertOperando2:
