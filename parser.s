@@ -107,12 +107,10 @@ isSum:
 	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
 	beq $s0, 1, L1	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
-	addi $a0, $a0, 1	# $a0 = offset
+	move $t8, $t1	# copio il risultato in $t8 (primo operando)
 	j loopParsing   # rieseguo il ciclo 
 L1:
-	move $t9, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
-	addi $a0, $a0, 1	# $a0 = offset
+	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
 	j loopParsing   # rieseguo il ciclo 
 	
 	
@@ -194,7 +192,7 @@ somma:
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
-	jal parsing		#la procedura main richiama parsing 
+	jal parsing		#la procedura somma richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	add $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
@@ -207,7 +205,7 @@ sottrazione:
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
 	la $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
-	jal parsing		#la procedura main richiama parsing 
+	jal parsing		#la procedura sottrazione richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	sub $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
@@ -219,7 +217,7 @@ prodotto:
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
 	la $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
-	jal parsing		#la procedura main richiama parsing 
+	jal parsing		#la procedura prodotto richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	mul $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
@@ -231,7 +229,7 @@ divisione:
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
 	la $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
-	jal parsing		#la procedura main richiama parsing 
+	jal parsing		#la procedura divisione richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	div $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
