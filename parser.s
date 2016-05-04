@@ -64,9 +64,14 @@ loopParsing:
 	beq $s0, 1, insertOperando2	#altrimenti metto il primo operando in $t8
 	addi $t1, $t1, -48
 	move $t8, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	addi $a0, $a0, 1	# $a0 = offset
+	j loopParsing
 	
 flag:	# modifico $s0 con valore 1, così dopo capisco che ho trovato il primo operando (devo gestire in quali registri inserire i valori di ritorno)
 	addi $s0, $zero, 1
+	#ripristino inizio sottostringa da dopo la virgola
+	move $t0, $a0
+	addi $t0, $t0, 1
 	#procedo direttamente all'etichetta sotto per incrementare offset e rieseguire il cicl
 ignore:
 	addi $a0, $a0, 1	# $a0 = offset
@@ -90,7 +95,7 @@ exit:
 # isSum, isSubtraction ecc consentono di richiamare la procedura da eseguire e ritornano al ciclo, il valore di ritorno delle procedure è salvato
 # in $v0 se non ho ancora raggiunto la virgola, altrimenti in $v1 (in sostanza simulano un costrutto if...else if...)
 isSum:
-	addi $a0, $a0, 5	#essendo una somma, il carattere dopo la prima parentesi aperta la trovo tra 6 byte/caratteri
+	addi $a0, $a0, 6	#essendo una somma, il carattere dopo la prima parentesi aperta la trovo tra 6 byte/caratteri
 	sw $a0, puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
 	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
@@ -99,10 +104,15 @@ isSum:
 	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
-	move $t1, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, insertOperando2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
+	beq $s0, 1, L1	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $v0	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	move $t8, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	addi $a0, $a0, 1	# $a0 = offset
+	j loopParsing   # rieseguo il ciclo 
+L1:
+	move $t9, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	addi $a0, $a0, 1	# $a0 = offset
 	j loopParsing   # rieseguo il ciclo 
 	
 	
@@ -116,7 +126,7 @@ isSubtraction:
 	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
-	move $t1, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
+	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
 	beq $s0, 1, insertOperando2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
 	move $t8, $v0	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
@@ -133,7 +143,7 @@ isMultiplication:
 	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
-	move $t1, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
+	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
 	beq $s0, 1, insertOperando2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
 	move $t8, $v0	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
@@ -150,7 +160,7 @@ isDivision:
 	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
 	lw $ra,4($sp)	 # e indirizzo di ritorno
 	addi $sp,$sp,8 	 # ripristina lo stack frame
-	move $t1, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
+	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
 	beq $s0, 1, insertOperando2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
 	move $t8, $v0	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
