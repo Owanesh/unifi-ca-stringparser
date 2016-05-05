@@ -73,18 +73,19 @@ loopParsing:
 	
 negativo:
 	addi $t4, $t4, 1
+	addi $a0, $a0, 1
 	j loopParsing
 	
 	
 negativeMultiplication1:
 	mul $t8, $t8, -1
-	addi $t4, $t4, 0
+	move $t4, $zero
 	j loopParsing		
 	
 		
 negativeMultiplication2:
 	mul $t9, $t9, -1
-	addi $t4, $t4, 0
+	move $t4, $zero
 	j execute
 	
 		
