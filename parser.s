@@ -58,6 +58,7 @@ loopParsing:
 	beq $t1, '(', ignore	#se trovo una parentesi aperta la ignoro
 	beq $t1, ')', execute	#se trovo una parentesi chiusa devo eseguire l'operazione ritornando alla procedura chiamante
 	beq $t1, ',', flag	#se trovo una virgola devo aggiornare $s0 che mi dice se ho già trovato il primo operando
+	beq $t1, '-', negativo 
 	beq $t1, $zero, exit	#se trovo zero significa che sono arrivato alla fine del file, perciò ho già calcolato il risultato finale
 	bge $t1, 'a', callProcedure    #se trovo una lettera allora devo richiamare una procedura, salto a callProcedure per capire quale
 	
@@ -70,12 +71,33 @@ loopParsing:
 	addi $a0, $a0, 1	# $a0 = offset
 	j loopParsing
 	
+negativo:
+	addi $t4, $t4, 1
+	j loopParsing
+	
+	
+negativeMultiplication1:
+	mul $t8, $t8, -1
+	addi $t4, $t4, 0
+	j loopParsing		
+	
+		
+negativeMultiplication2:
+	mul $t9, $t9, -1
+	addi $t4, $t4, 0
+	j execute
+	
+		
 flag:	# modifico $s0 con valore 1, così dopo capisco che ho trovato il primo operando (devo gestire in quali registri inserire i valori di ritorno)
 	addi $s0, $zero, 1
 	#ripristino inizio sottostringa da dopo la virgola
 	move $t0, $a0
 	addi $t0, $t0, 1
-	#procedo direttamente all'etichetta sotto per incrementare offset e rieseguire il cicl
+	addi $a0, $a0, 1	# $a0 = offset
+	#procedo direttamente all'etichetta sotto per incrementare offset e rieseguire il ciclo
+	beq $t4, 1, negativeMultiplication1 
+	j loopParsing
+	
 ignore:
 	addi $a0, $a0, 1	# $a0 = offset
 	j loopParsing
@@ -186,6 +208,7 @@ insertOperando2:
 	
 execute:	# ho trovato una parentesi chiusa, sono qui per tornare alla procedura chiamante con $v0: primo operando e $v1: secondo operando
 	move $v0, $t8	# gli operandi sono nei registri $t8 e $t9, li sposto in $v0 e $v1
+	beq $t4, 1, negativeMultiplication2
 	move $v1, $t9	
 	lw $s0, 0($sp)	#devo ripristinare il valore di $s0 per il chiamante
 	addi $sp, $sp ,4
