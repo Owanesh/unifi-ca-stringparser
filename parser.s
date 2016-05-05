@@ -50,6 +50,8 @@ parsing:
 	addi $sp, $sp, -4
 	sw $s0, 0($sp)		#salvo il valore di $s0, dato che all'inizio $s0 sarà uguale a 0 (non ho ancora raggiunto la virgola ovviamente)
 	move $s0, $zero
+	move $t8, $zero
+	move $t9, $zero
 loopParsing:
 	lb  $t1, 0($a0)		#leggo un carattere
 	beq $t1, ' ', ignore	#se trovo uno spazio la ignoro
@@ -58,12 +60,13 @@ loopParsing:
 	beq $t1, ',', flag	#se trovo una virgola devo aggiornare $s0 che mi dice se ho già trovato il primo operando
 	beq $t1, $zero, exit	#se trovo zero significa che sono arrivato alla fine del file, perciò ho già calcolato il risultato finale
 	bge $t1, 'a', callProcedure    #se trovo una lettera allora devo richiamare una procedura, salto a callProcedure per capire quale
-
+	
 	#se sono arrivato qui ho trovato un operando per esclusione
 	#il primo e secondo operando vanno salvati rispettivamente in $t8 e $t9, $s0 mi dice quale
 	beq $s0, 1, insertOperando2	#altrimenti metto il primo operando in $t8
 	addi $t1, $t1, -48
-	move $t8, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	mul $t8, $t8, 10
+	add $t8, $t8, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
 	addi $a0, $a0, 1	# $a0 = offset
 	j loopParsing
 	
@@ -175,7 +178,8 @@ L4:
 	
 insertOperando2:
 	addi $t1, $t1, -48
-	move $t9, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
+	mul $t9, $t9, 10
+	add $t9, $t9, $t1
 	addi $a0, $a0, 1	# $a0 = offset
 	j loopParsing	# rieseguo il ciclo 
 	
@@ -216,6 +220,16 @@ somma:
 
 #--------------------------  PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
 sottrazione:
+
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
+	sw $ra, 0($sp)
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui cominciare a stampare
+	addi $a0, $a0, -12	# decremento di 12 byte/caratteri per tornare alla lettera 's'
+	jal printOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
+	addi $sp, $sp, 4	# e dealloco lo stack
+	
+	
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
@@ -228,6 +242,16 @@ sottrazione:
 
 #--------------------------  PROCEDURA PRODOTTO -------------------------------------------------------------------------------------------
 prodotto:
+
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
+	sw $ra, 0($sp)
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui cominciare a stampare
+	addi $a0, $a0, -9	# decremento di 9 byte/caratteri per tornare alla lettera 's'
+	jal printOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
+	addi $sp, $sp, 4	# e dealloco lo stack
+	
+	
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
@@ -240,6 +264,16 @@ prodotto:
 
 #--------------------------  PROCEDURA DIVISIONE -------------------------------------------------------------------------------------------
 divisione:
+
+	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
+	sw $ra, 0($sp)
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui cominciare a stampare
+	addi $a0, $a0, -10	# decremento di 10 byte/caratteri per tornare alla lettera 's'
+	jal printOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
+	addi $sp, $sp, 4	# e dealloco lo stack
+	
+	
 	addi $sp, $sp, -4	#salvo solo indirizzo di ritorno
 	sw $ra, 0($sp)
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
@@ -297,6 +331,12 @@ printOperation:
 		j loopSecondoCiclo
 		
 	exitLoop2:
+	li $v0, 11
+	addi $a0, $zero, 10
+	syscall
+	li $v0, 11
+	addi $a0, $zero, 13
+	syscall
 	lw $s2, 8($sp)	#ripritino valori di ritorno
 	lw $s1, 4($sp)
 	lw $s0, 0($sp)	
