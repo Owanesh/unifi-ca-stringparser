@@ -286,16 +286,17 @@ printOperation:
 		beq $s1, ')', decremento
 		beq $s1, '(', incremento
 		beq $s1, $zero, exitLoop2
+		j loopSecondoCiclo
 		
 	incremento:
 		addi $s2, $s2, 1	#incrementa il contatore
 		j loopSecondoCiclo
+		
 	decremento:
 		addi $s2, $s2, -1	#decremento il contatore
 		j loopSecondoCiclo
 		
 	exitLoop2:
-	
 	lw $s2, 8($sp)	#ripritino valori di ritorno
 	lw $s1, 4($sp)
 	lw $s0, 0($sp)	
