@@ -8,11 +8,13 @@ strReturnSomma: .asciiz "<-- somma-return("
 strReturnSottrazione: .asciiz "<-- sottrazione-return("
 strReturnProdotto: .asciiz "<-- prodotto-return("
 strReturnDivisione: .asciiz "<-- divisione-return("
+strTab: .asciiz "	"
 fnf:	.ascii  "The file was not found: "
 file:	.asciiz	"chiamate.txt"
 error_divFor0:	.asciiz  "ERROR: found division for 0"
 bufferString: .space 151
 puntatore: .word bufferString
+contatoreTab: .word 0
 
 
 .text
@@ -247,25 +249,16 @@ somma:
 	
 	add $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
 	
-	move $t6, $v0
-	#stampo stringa return
-	li	$v0, 4		# stampa stringa strReturnSomma
-	la	$a0, strReturnSomma	
-	syscall
-	li	$v0, 1		# stampa intero
-	move	$a0, $t6	
-	syscall
-	li	$v0, 11		# stampa parentesi
-	addi	$a0, $zero, 41		
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 10
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 13
-	syscall
+	addi $sp, $sp, -8	#salvo indirizzo di ritorno e risultato della somma
+	sw $v0, 4($sp)
+	sw $ra, 0($sp)
+	move $a0, $v0 		# $a0 = risultato da stampare
+	addi $a1, $zero, 1	# $a1 = 1 perche' stampo una somma
+	jal printReturnOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno e risultato
+	lw $v0, 4($sp)	
+	addi $sp, $sp, 8	# e dealloco lo stack
 	
-	move $v0, $t6
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
@@ -290,25 +283,16 @@ sottrazione:
 	addi $sp, $sp, 4	# e dealloco lo stack
 	sub $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
 	
-	move $t6, $v0
-	#stampo stringa return
-	li	$v0, 4		# stampa stringa strReturnSottrazione
-	la	$a0, strReturnSottrazione	
-	syscall
-	li	$v0, 1		# stampa intero
-	move	$a0, $t6	
-	syscall
-	li	$v0, 11		# stampa parentesi
-	addi	$a0, $zero, 41
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 10
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 13
-	syscall
+	addi $sp, $sp, -8	#salvo indirizzo di ritorno e risultato della somma
+	sw $v0, 4($sp)
+	sw $ra, 0($sp)
+	move $a0, $v0 		# $a0 = risultato da stampare
+	addi $a1, $zero, 2	# $a1 = 2 perche' stampo una sottrazione
+	jal printReturnOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno e risultato
+	lw $v0, 4($sp)	
+	addi $sp, $sp, 8	# e dealloco lo stack
 	
-	move $v0, $t6
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
@@ -333,25 +317,16 @@ prodotto:
 	addi $sp, $sp, 4	# e dealloco lo stack
 	mul $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
 	
-	move $t6, $v0
-	#stampo stringa return
-	li	$v0, 4		# stampa stringa strReturnProdotto
-	la	$a0, strReturnProdotto	
-	syscall
-	li	$v0, 1		# stampa intero
-	move	$a0, $t6	
-	syscall
-	li	$v0, 11		# stampa parentesi
-	addi	$a0, $zero, 41
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 10
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 13
-	syscall
+	addi $sp, $sp, -8	#salvo indirizzo di ritorno e risultato della somma
+	sw $v0, 4($sp)
+	sw $ra, 0($sp)
+	move $a0, $v0 		# $a0 = risultato da stampare
+	addi $a1, $zero, 3	# $a1 = 3 perche' stampo un prodotto
+	jal printReturnOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno e risultato
+	lw $v0, 4($sp)	
+	addi $sp, $sp, 8	# e dealloco lo stack
 	
-	move $v0, $t6
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA PRODOTTO -------------------------------------------------------------------------------------------
@@ -375,28 +350,19 @@ divisione:
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	beq $v1, $zero, exitForError	#se il secondo operando è uguale a 0 devo uscire stampando un messaggio di errore
-	div $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
+	div $v0, $v1		#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
 	mflo $v0
 	
-	move $t6, $v0
-	#stampo stringa return
-	li	$v0, 4		# stampa stringa strReturnDivisione
-	la	$a0, strReturnDivisione	
-	syscall
-	li	$v0, 1		# stampa intero
-	move	$a0, $t6	
-	syscall
-	li	$v0, 11		# stampa parentesi
-	addi	$a0, $zero, 41
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 10
-	syscall
-	li 	$v0, 11
-	addi 	$a0, $zero, 13
-	syscall
+	addi $sp, $sp, -8	#salvo indirizzo di ritorno e risultato della somma
+	sw $v0, 4($sp)
+	sw $ra, 0($sp)
+	move $a0, $v0 		# $a0 = risultato da stampare
+	addi $a1, $zero, 4	# $a1 = 4 perche' stampo una divisione
+	jal printReturnOperation
+	lw $ra, 0($sp)		# ripristino indirizzo di ritorno e risultato
+	lw $v0, 4($sp)	
+	addi $sp, $sp, 8	# e dealloco lo stack
 	
-	move $v0, $t6
 	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA DIVISIONE -------------------------------------------------------------------------------------------
@@ -404,7 +370,7 @@ divisione:
 
 
 #--------------------------  PROCEDURA PRINT OPERATION -------------------------------------------------------------------------------------------
-# printOperation: riceve un parametro contenente l'indirizzo del primo carattere della procedura, non ritorna niente.
+# printOperation: $a0 -> contiene l'indirizzo del primo carattere della procedura, non ritorna niente.
 #		  Esegue un ciclo che termina quando il contatore torna a 0
 printOperation:
 	addi $sp, $sp, -12
@@ -413,6 +379,35 @@ printOperation:
 	sw $s2, 8($sp)
 	move $s2, $zero	# $s2 = contatore di parentesi
 	move $s0, $a0	# $s0 = puntatore del prossimo carattere da leggere
+	
+	#stampo tante indentazioni quante specificate nella variabile globale contatoreTab
+	lw $t0, contatoreTab
+	la $a0, strTab	#stringa di indentazione da stampare
+	loopTab:
+		beq $t0, $zero, exitLoopTab
+		li $v0, 4	# stampa stringa strTab
+		syscall
+		addi $t0, $t0, -1   #decremento contatore
+		j loopTab
+	exitLoopTab:
+	lw $t0, contatoreTab	#aumento contatoreTab per la prossima stampa
+	addi $t0, $t0, 1
+	sw $t0, contatoreTab	
+	
+	#stampa freccia
+	li $v0, 11		#stampo '-'
+	addi $a0, $zero, 45
+	syscall
+	li $v0, 11		#stampo '-'
+	addi $a0, $zero, 45
+	syscall
+	li $v0, 11		#stampo '>'
+	addi $a0, $zero, 62
+	syscall
+	li $v0, 11		#stampo ' '
+	addi $a0, $zero, 32
+	syscall
+	
 	loopPrimoCiclo:
 		lb  $s1, 0($s0)		#leggo un carattere
 		li $v0, 11		#stampo il carattere letto
@@ -462,9 +457,61 @@ printOperation:
 
 
 #--------------------------  PROCEDURA PRINT RETURN OPERATION -------------------------------------------------------------------------------------------
-# printReturnOperation: stampa il valore di ritorno dell'operazione appena eseguita, riceve $a0 = valore da stampare, $a1 = nome procedura da stampare
+# printReturnOperation: stampa il valore di ritorno dell'operazione appena eseguita, riceve $a0 = valore da stampare, 
+# 			$a1 = codice della procedura da stampare 1->somma, 2->sottrazione, 3->prodotto, 4->divisione
 printReturnOperation:
+	move $t0, $a0		# $t0 = valore da stampare
+	move $t1, $a1		# $t1 = carattere della procedura da stampare
 	
+	#stampo tante indentazioni quante specificate nella variabile globale contatoreTab
+	lw $t2, contatoreTab
+	addi $t2, $t2, -1
+	la $a0, strTab	#stringa di indentazione da stampare
+	loopTab2:
+		beq $t2, $zero, exitLoopTab2
+		li $v0, 4	# stampa stringa strTab
+		syscall
+		addi $t2, $t2, -1   #decremento contatore
+		j loopTab2
+	exitLoopTab2:
+	lw $t2, contatoreTab	#decremento contatoreTab per la prossima stampa
+	addi $t2, $t2, -1
+	sw $t2, contatoreTab	
+	
+	
+	#controllo quale procedura devo stampare
+	beq $t1, 1, strSomma
+	beq $t1, 2, strSottrazione
+	beq $t1, 3, strProdotto
+	
+	la 	 $a0, strReturnDivisione	#per esclusione la procedura e' divisione
+	j L5
+	
+strSomma:
+	la 	 $a0, strReturnSomma
+	j L5
+strSottrazione:
+	la 	 $a0, strReturnSottrazione
+	j L5
+strProdotto:
+	la 	 $a0, strReturnProdotto
+L5:
+	li	$v0, 4		# stampa stringa strReturnDivisione
+	syscall
+	li	$v0, 1		# stampa intero
+	move	$a0, $t0	
+	syscall
+	li	$v0, 11		# stampa parentesi
+	addi	$a0, $zero, 41
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 10
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 13
+	syscall
+	
+	jr $ra
 
 
 #-------------------------- FINE PROCEDURA PRINT RETURN OPERATION -------------------------------------------------------------------------------------------
