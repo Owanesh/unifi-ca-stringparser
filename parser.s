@@ -4,9 +4,14 @@
 
 .data
 
+strReturnSomma: .asciiz "<-- somma-return("
+strReturnSottrazione: .asciiz "<-- sottrazione-return("
+strReturnProdotto: .asciiz "<-- prodotto-return("
+strReturnDivisione: .asciiz "<-- divisione-return("
 fnf:	.ascii  "The file was not found: "
 file:	.asciiz	"chiamate.txt"
-bufferString: .space 150
+error_divFor0:	.asciiz  "ERROR: found division for 0"
+bufferString: .space 151
 puntatore: .word bufferString
 
 
@@ -29,17 +34,17 @@ main:
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	
-	#stampa risultato finale
-	move $t5, $v0
-	li $v0, 1
-	add $a0, $zero, $t5
-	syscall
-	
 	li $v0, 10
 	syscall
-	
-#	jr $ra	#terminazione programma
+	jr $ra	#terminazione programma
 
+exitForError:
+	#ho letto una divisione per 0, esco con un messaggio di errore
+	li	$v0, 4		# stampa messaggio d'errore
+	la	$a0, error_divFor0	
+	syscall
+	li $v0, 10
+	syscall
 
 #--------------------------- PROCEDURA PARSING   ---------------------------------------------------------------------------------------
 #parsing: procedura che si occupa di analizzare la stringa e fornire gli operandi necessari alla procedura chiamante,
@@ -49,58 +54,59 @@ parsing:
 	move $t0, $a0 		#salvo indirizzo del carattere iniziale, mi servira' dopo (nella callProcedure)
 	addi $sp, $sp, -4
 	sw $s0, 0($sp)		#salvo il valore di $s0, dato che all'inizio $s0 sarà uguale a 0 (non ho ancora raggiunto la virgola ovviamente)
-	move $s0, $zero
-	move $t8, $zero
+	move $s0, $zero		#inizializzo variabile flag $s0
+	move $t8, $zero		# $t8 e $t9 conterranno i 2 operandi
 	move $t9, $zero
 loopParsing:
 	lb  $t1, 0($a0)		#leggo un carattere
 	beq $t1, ' ', ignore	#se trovo uno spazio la ignoro
 	beq $t1, '(', ignore	#se trovo una parentesi aperta la ignoro
 	beq $t1, ')', execute	#se trovo una parentesi chiusa devo eseguire l'operazione ritornando alla procedura chiamante
-	beq $t1, ',', flag	#se trovo una virgola devo aggiornare $s0 che mi dice se ho già trovato il primo operando
-	beq $t1, '-', negativo 
+	beq $t1, ',', flagVirgola	#se trovo una virgola devo aggiornare $s0 che mi dice se ho già trovato il primo operando
+	beq $t1, '-', flagNegativo  #se trovo un trattino meno il prossimo operando che leggo dovrò moltiplicarlo per -1
 	beq $t1, $zero, exit	#se trovo zero significa che sono arrivato alla fine del file, perciò ho già calcolato il risultato finale
 	bge $t1, 'a', callProcedure    #se trovo una lettera allora devo richiamare una procedura, salto a callProcedure per capire quale
 	
 	#se sono arrivato qui ho trovato un operando per esclusione
 	#il primo e secondo operando vanno salvati rispettivamente in $t8 e $t9, $s0 mi dice quale
-	beq $s0, 1, insertOperando2	#altrimenti metto il primo operando in $t8
-	addi $t1, $t1, -48
-	mul $t8, $t8, 10
-	add $t8, $t8, $t1	# $v0 è ovviamente il valore di ritorno dell'operazione appena ritornata
-	addi $a0, $a0, 1	# $a0 = offset
+	beq $s0, 1, insertOperando2	# se $s0 è uguale a 1 salto a modificare il primo operando
+	 
+	#altrimenti metto il primo operando in $t8
+	addi $t1, $t1, -48	# trasformo $t1 in un numero 
+	mul $t8, $t8, 10	# il valore finora letto di $t8 viene moltiplicato per 10 per sommarci la cifra appena letta
+	add $t8, $t8, $t1	
+	addi $a0, $a0, 1	# procedo al prossimo carattere
 	j loopParsing
 	
-negativo:
+flagNegativo:
+	# $t4 è la variabile flag che mi dice di moltiplicare per -1 il prossimo operando che leggo
 	addi $t4, $t4, 1
-	addi $a0, $a0, 1
-	j loopParsing
+	addi $a0, $a0, 1	#procedo a prossimo carattere
+	j loopParsing		#rieseguo il ciclo di lettura
 	
 	
 negativeMultiplication1:
-	mul $t8, $t8, -1
-	move $t4, $zero
-	j loopParsing		
+	mul $t8, $t8, -1	# il primo operando ($t8) viene modificato in un numero negativo
+	move $t4, $zero		# $t4 torna a 0
+	j loopParsing		# essendo il primo operando non ho ancora terminato la procedura attuale, continuo a leggere
 	
 		
 negativeMultiplication2:
-	mul $t9, $t9, -1
-	move $t4, $zero
-	j execute
+	mul $t9, $t9, -1	# il secondo operando ($t9) viene modificato in un numero negativo
+	move $t4, $zero		# $t4 torna a 0
+	j execute		# essendo il secondo operando ho terminato il parsing di questa procedura, salto a execute
 	
 		
-flag:	# modifico $s0 con valore 1, così dopo capisco che ho trovato il primo operando (devo gestire in quali registri inserire i valori di ritorno)
+flagVirgola:	# modifico $s0 con valore 1, così dopo capisco che ho già trovato il primo operando (devo gestire in quali registri inserire i valori di ritorno)
 	addi $s0, $zero, 1
-	#ripristino inizio sottostringa da dopo la virgola
-	move $t0, $a0
+	move $t0, $a0		#ripristino inizio sottostringa da dopo la virgola
 	addi $t0, $t0, 1
-	addi $a0, $a0, 1	# $a0 = offset
-	#procedo direttamente all'etichetta sotto per incrementare offset e rieseguire il ciclo
-	beq $t4, 1, negativeMultiplication1 
-	j loopParsing
+	addi $a0, $a0, 1	# procedo al prossimo carattere
+	beq $t4, 1, negativeMultiplication1 #salto a modificare il primo operando appena letto se $t4 è uguale a 1 (significa che avevo letto un meno)
+	j loopParsing		#rieseguo il ciclo
 	
 ignore:
-	addi $a0, $a0, 1	# $a0 = offset
+	addi $a0, $a0, 1	# procedo al prossimo carattere
 	j loopParsing
 
 callProcedure: #individua l'operazione da svolgere
@@ -112,109 +118,108 @@ callProcedure: #individua l'operazione da svolgere
 	beq $t2, 't', isSubtraction #per esclusione salto a sottrazione (eseguo comunque il controllo)
 	
 exit:
-	addi $sp, $sp ,4
-	addi $a0, $a0, 1    # se sono qui è perchè ho trovato una parentesi chiusa, mi sposto sul prossimo carattere
+	# se sono qui la procedura chiamante a cui ritorno dev'essere main e in $ra ho già ripristinato l'indirizzo di ritorno
 	jr $ra
 
 
 
-# isSum, isSubtraction ecc consentono di richiamare la procedura da eseguire e ritornano al ciclo, il valore di ritorno delle procedure è salvato
-# in $v0 se non ho ancora raggiunto la virgola, altrimenti in $v1 (in sostanza simulano un costrutto if...else if...)
+# isSum, isSubtraction ecc consentono di richiamare la procedura da eseguire. In $v0 verrà salvato il valore di ritorno che in base
+# a $s0 sarà salvato in $t8 (primo operando) o $t9 (secondo operando)
 isSum:
 	addi $a0, $a0, 6	#essendo una somma, il carattere dopo la prima parentesi aperta la trovo tra 6 byte/caratteri
-	sw $a0, puntatore
-	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
-	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
-	sw $t8,0($sp)	   # salva il parametro d'invocazione
+	sw $a0, puntatore	#aggiorno variabile globale puntatore
+	addi $sp, $sp, -8	#devo salvarmi $ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
+	sw $ra,4($sp)	   	# salva l'indirizzo di ritorno al chiamante
+	sw $t8,0($sp)	   	# salvo il primo operando
 	jal somma
-	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
-	lw $ra,4($sp)	 # e indirizzo di ritorno
-	addi $sp,$sp,8 	 # ripristina lo stack frame
-	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, L1	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	lw $t8,0($sp) 	 	# ripristina i valori salvati in precedenza nello stack frame: primo operando
+	lw $ra,4($sp)	 	# e indirizzo di ritorno
+	addi $sp,$sp,8 	 	# ripristina lo stack frame
+	beq $s0, 1, L1		# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $t1	# copio il risultato in $t8 (primo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t8, $v0		# copio il risultato in $t8 (primo operando)
+	j loopParsing   	# rieseguo il ciclo 
 L1:
-	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t9, $v0		# copio il risultato in $t9 (secondo operando)
+	j loopParsing   	# rieseguo il ciclo 
 	
 	
 isSubtraction:
 	addi $a0, $a0, 12	#essendo una sottrazione, il carattere dopo la prima parentesi aperta la trovo tra 12 byte/caratteri
-	sw $a0, puntatore
-	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
-	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
-	sw $t8,0($sp)	   # salva il parametro d'invocazione
+	sw $a0, puntatore	#aggiorno variabile globale puntatore
+	addi $sp, $sp, -8	#devo salvarmi $ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
+	sw $ra,4($sp)	  	# salva l'indirizzo di ritorno al chiamante
+	sw $t8,0($sp)	   	# salvo il primo operando
 	jal sottrazione
-	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
-	lw $ra,4($sp)	 # e indirizzo di ritorno
-	addi $sp,$sp,8 	 # ripristina lo stack frame
-	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, L2	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	lw $t8,0($sp) 		 # ripristina i valori salvati in precedenza nello stack frame: operando
+	lw $ra,4($sp)		 # e indirizzo di ritorno
+	addi $sp,$sp,8 		 # ripristina lo stack frame
+	beq $s0, 1, L2		# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $t1	# copio il risultato in $t8 (primo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t8, $v0		# copio il risultato in $t8 (primo operando)
+	j loopParsing   	# rieseguo il ciclo 
 L2:
-	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t9, $v0		# copio il risultato in $t9 (secondo operando)
+	j loopParsing  	 	# rieseguo il ciclo 
 		
 isMultiplication:
 	addi $a0, $a0, 9	#essendo una moltiplicazione, il carattere dopo la prima parentesi aperta la trovo tra 9 byte/caratteri
-	sw $a0, puntatore
+	sw $a0, puntatore	#aggiorno variabile globale puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
-	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
-	sw $t8,0($sp)	   # salva il parametro d'invocazione
+	sw $ra,4($sp)	 	# salva l'indirizzo di ritorno al chiamante
+	sw $t8,0($sp)		# salvo il primo operando
 	jal prodotto
-	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
-	lw $ra,4($sp)	 # e indirizzo di ritorno
-	addi $sp,$sp,8 	 # ripristina lo stack frame
-	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, L3	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	lw $t8,0($sp) 		# ripristina i valori salvati in precedenza nello stack frame: operando
+	lw $ra,4($sp)		# e indirizzo di ritorno
+	addi $sp,$sp,8 		# ripristina lo stack frame
+
+	beq $s0, 1, L3		# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $t1	# copio il risultato in $t8 (primo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t8, $v0		# copio il risultato in $t8 (primo operando)
+	j loopParsing   	# rieseguo il ciclo 
 	
 L3:
-	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t9, $v0		# copio il risultato in $t9 (secondo operando)
+	j loopParsing  		# rieseguo il ciclo 
 
 isDivision:
 	addi $a0, $a0, 10	#essendo una divisione, il carattere dopo la prima parentesi aperta la trovo tra 10 byte/caratteri
-	sw $a0, puntatore
+	sw $a0, puntatore	#aggiorno variabile globale puntatore
 	addi $sp, $sp, -8	#devo salvarmi ra ed eventualmente $t8, che potrei già avere calcolato oppure no (magari lo sto calcolando con questa chiamata)
-	sw $ra,4($sp)	   # salva l'indirizzo di ritorno al chiamante
-	sw $t8,0($sp)	   # salva il parametro d'invocazione
+	sw $ra,4($sp)	   	# salva l'indirizzo di ritorno al chiamante
+	sw $t8,0($sp)	  	# salvo il primo operando
 	jal divisione
-	lw $t8,0($sp) 	 # ripristina i valori salvati in precedenza nello stack frame: operando
-	lw $ra,4($sp)	 # e indirizzo di ritorno
-	addi $sp,$sp,8 	 # ripristina lo stack frame
-	add $t1, $zero, $v0	 #inserisco in $t1 il valore di ritorno ($t1 conteneva al massimo l'ultimo carattere della stringa letto, non mi interessa)
-	beq $s0, 1, L4	# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
+	lw $t8,0($sp) 	 	# ripristina i valori salvati in precedenza nello stack frame: operando
+	lw $ra,4($sp)	 	# e indirizzo di ritorno
+	addi $sp,$sp,8 	 	# ripristina lo stack frame
+	beq $s0, 1, L4		# $s0 mi dice se ho superato la virgola dell'attuale operazione, serve per capire se il risultato
 					# lo devo mettere in $t8 oppure $t9
-	move $t8, $t1	# copio il risultato in $t8 (primo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t8, $v0		# copio il risultato in $t8 (primo operando)
+	j loopParsing   	# rieseguo il ciclo 
 L4:
-	move $t9, $t1	# copio il risultato in $t9 (secondo operando)
-	j loopParsing   # rieseguo il ciclo 
+	move $t9, $v0		# copio il risultato in $t9 (secondo operando)
+	j loopParsing   	# rieseguo il ciclo 
 
 	
 insertOperando2:
-	addi $t1, $t1, -48
-	mul $t9, $t9, 10
+	addi $t1, $t1, -48	# trasformo $t1 in un numero 
+	mul $t9, $t9, 10	# il valore finora letto di $t9 viene moltiplicato per 10 per sommarci la cifra appena letta
 	add $t9, $t9, $t1
-	addi $a0, $a0, 1	# $a0 = offset
-	j loopParsing	# rieseguo il ciclo 
+	addi $a0, $a0, 1	# procedo al prossimo carattere
+	j loopParsing		# rieseguo il ciclo 
 	
 	
-execute:	# ho trovato una parentesi chiusa, sono qui per tornare alla procedura chiamante con $v0: primo operando e $v1: secondo operando
-	move $v0, $t8	# gli operandi sono nei registri $t8 e $t9, li sposto in $v0 e $v1
-	beq $t4, 1, negativeMultiplication2
+execute:	# ho trovato una parentesi chiusa, sono qui per tornare alla procedura chiamante. Valori di ritorno -> $v0: primo operando , $v1: secondo operando
+	move $v0, $t8		# gli operandi sono nei registri $t8 e $t9, li sposto in $v0 e $v1
+	beq $t4, 1, negativeMultiplication2	#il secondo operando potrebbe dover essere modificato, controllo $t4 ed eventualmente salto
 	move $v1, $t9	
-	lw $s0, 0($sp)	#devo ripristinare il valore di $s0 per il chiamante
+	lw $s0, 0($sp)		#devo ripristinare il valore di $s0 per il chiamante
 	addi $sp, $sp ,4
-	addi $a0, $a0, 1    # se sono qui è perchè ho trovato una parentesi chiusa, mi sposto sul prossimo carattere
-	sw $a0, puntatore  # la word puntatore è una variabile globale che conterrà sempre l'indirizzo del carattere da cui ripartire nel prossimo parsing
+	addi $a0, $a0, 1    	# se sono qui è perchè ho trovato una parentesi chiusa, mi sposto sul prossimo carattere
+	move $t8, $zero		# devo azzerare i valori di $t8 e $t9 per le prossime procedure
+	move $t9, $zero		# devo azzerare i valori di $t8 e $t9 per le prossime procedure
+	sw $a0, puntatore  	# aggiorno variabile globale puntatore
+	# in questo caso $ra è l'indirizzo di ritorno a somma, prodotto, sottrazione o divisione
 	jr $ra
 
 #------------------------  FINE PROCEDURA PARSING -------------------------------------------------------------------------------------
@@ -238,7 +243,30 @@ somma:
 	jal parsing		#la procedura somma richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
+	
+	
 	add $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
+	
+	move $t6, $v0
+	#stampo stringa return
+	li	$v0, 4		# stampa stringa strReturnSomma
+	la	$a0, strReturnSomma	
+	syscall
+	li	$v0, 1		# stampa intero
+	move	$a0, $t6	
+	syscall
+	li	$v0, 11		# stampa parentesi
+	addi	$a0, $zero, 41		
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 10
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 13
+	syscall
+	
+	move $v0, $t6
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA SOMMA -------------------------------------------------------------------------------------------
 
@@ -261,6 +289,27 @@ sottrazione:
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	sub $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
+	
+	move $t6, $v0
+	#stampo stringa return
+	li	$v0, 4		# stampa stringa strReturnSottrazione
+	la	$a0, strReturnSottrazione	
+	syscall
+	li	$v0, 1		# stampa intero
+	move	$a0, $t6	
+	syscall
+	li	$v0, 11		# stampa parentesi
+	addi	$a0, $zero, 41
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 10
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 13
+	syscall
+	
+	move $v0, $t6
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA SOTTRAZIONE -------------------------------------------------------------------------------------------
 
@@ -283,6 +332,27 @@ prodotto:
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
 	mul $v0, $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
+	
+	move $t6, $v0
+	#stampo stringa return
+	li	$v0, 4		# stampa stringa strReturnProdotto
+	la	$a0, strReturnProdotto	
+	syscall
+	li	$v0, 1		# stampa intero
+	move	$a0, $t6	
+	syscall
+	li	$v0, 11		# stampa parentesi
+	addi	$a0, $zero, 41
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 10
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 13
+	syscall
+	
+	move $v0, $t6
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA PRODOTTO -------------------------------------------------------------------------------------------
 
@@ -304,8 +374,30 @@ divisione:
 	jal parsing		#la procedura divisione richiama parsing 
 	lw $ra, 0($sp)		# ripristino indirizzo di ritorno
 	addi $sp, $sp, 4	# e dealloco lo stack
+	beq $v1, $zero, exitForError	#se il secondo operando è uguale a 0 devo uscire stampando un messaggio di errore
 	div $v0, $v1	#calcolo direttamente in $v0 la somma degli operandi che parsing mi ha fornito
 	mflo $v0
+	
+	move $t6, $v0
+	#stampo stringa return
+	li	$v0, 4		# stampa stringa strReturnDivisione
+	la	$a0, strReturnDivisione	
+	syscall
+	li	$v0, 1		# stampa intero
+	move	$a0, $t6	
+	syscall
+	li	$v0, 11		# stampa parentesi
+	addi	$a0, $zero, 41
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 10
+	syscall
+	li 	$v0, 11
+	addi 	$a0, $zero, 13
+	syscall
+	
+	move $v0, $t6
+	lw $a0, puntatore	#puntatore = indirizzo del carattere da cui ripartire per il parsing
 	jr $ra
 #-------------------------- FINE PROCEDURA DIVISIONE -------------------------------------------------------------------------------------------
 
@@ -315,7 +407,6 @@ divisione:
 # printOperation: riceve un parametro contenente l'indirizzo del primo carattere della procedura, non ritorna niente.
 #		  Esegue un ciclo che termina quando il contatore torna a 0
 printOperation:
-	
 	addi $sp, $sp, -12
 	sw $s0, 0($sp)
 	sw $s1, 4($sp)
@@ -366,13 +457,17 @@ printOperation:
 	lw $s0, 0($sp)	
 	addi $sp, $sp, 12
 	jr $ra
-		
-		
-	
-
 #-------------------------- FINE PROCEDURA PRINT OPERATION -------------------------------------------------------------------------------------------
 
 
+
+#--------------------------  PROCEDURA PRINT RETURN OPERATION -------------------------------------------------------------------------------------------
+# printReturnOperation: stampa il valore di ritorno dell'operazione appena eseguita, riceve $a0 = valore da stampare, $a1 = nome procedura da stampare
+printReturnOperation:
+	
+
+
+#-------------------------- FINE PROCEDURA PRINT RETURN OPERATION -------------------------------------------------------------------------------------------
 
 
 
