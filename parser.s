@@ -11,7 +11,7 @@ strTab: .asciiz "	"
 fnf:	.ascii  "The file was not found: "
 file:	.asciiz	"chiamate.txt"
 error_divFor0:	.asciiz  "ERROR: found division for 0"
-bufferString: .space 151
+bufferString: .space 150
 puntatore: .word bufferString
 contatoreTab: .word 0
 
@@ -56,7 +56,9 @@ exitForError:
 # 	  come operandi della procedura chiamante
 parsing:
 
-	move $t0, $a0 			#salvo l'indirizzo del carattere iniziale, mi servira' dopo (nella 'callProcedure')
+	move $t0, $a0 			#salvo l'indirizzo del carattere iniziale, mi servira' dopo 
+					#(nella 'callProcedure')
+					
 	addi $sp, $sp, -4
 	sw $s0, 0($sp)			#salvo il valore di $s0, dato che all'inizio sarà uguale a 0 (non ho ancora 
 					#raggiunto la virgola ovviamente)
@@ -76,7 +78,7 @@ loopParsing:
 	beq $t1, ',', flagVirgola	#se trovo una virgola devo aggiornare $s0 che mi dice se ho già trovato
 					#il primo operando
 	
-	beq $t1, '-', flagNegativo       #se trovo un trattino meno il prossimo operando che leggo dovrò moltiplicarlo
+	beq $t1, '-', flagNegativo       #se trovo un trattino il prossimo operando che leggo dovro' moltiplicarlo
 					 #per -1
 					 
 	beq $t1, $zero, exit		#se trovo zero significa che sono arrivato alla fine del file, perciò 
@@ -85,7 +87,7 @@ loopParsing:
 	bge $t1, 'a', callProcedure     #se trovo una lettera allora devo richiamare una procedura, salto a 
 					#'callProcedure' per capire quale
 	
-	#se sono arrivato quì ho trovato un operando per esclusione
+	#se sono arrivato qui ho trovato un operando per esclusione
 	#il primo e secondo operando vanno salvati rispettivamente in $t8 e $t9, $s0 mi dice quale
 	
 	beq $s0, 1, insertOperando2	#se $s0 è uguale a 1 salto a modificare il primo operando
