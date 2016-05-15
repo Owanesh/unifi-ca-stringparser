@@ -37,9 +37,7 @@ main:
 	lw $ra, 0($sp)		#ripristino l'indirizzo di ritorno
 	addi $sp, $sp, 4	#e dealloco lo stack
 	
-	li $v0, 10
-	syscall
-	jr $ra			#terminazione del programma
+	jr $ra			#terminazione del programma, ritorno a procedura chiamante di QTSpim
 
 exitForError:
 	#ho letto una divisione per 0, esco con un messaggio di errore
@@ -155,6 +153,8 @@ callProcedure:
 exit:
 	#se sono qui la procedura chiamante a cui ritorno dev'essere main e in $ra ho già ripristinato
 	#l'indirizzo di ritorno
+	#devo togliere lo spazio usato per il registro $s0
+	addi $sp, $sp, 4
 	jr $ra
 
 
