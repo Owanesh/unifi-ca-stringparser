@@ -1,4 +1,6 @@
-			#Mauro Matteo - Busiello Salvatore - Milicia Lorenzo
+#Mauro Matteo - matteo.mauro@stud.unifi.it
+#Busiello Salvatore - salvatore.busiello@stud.unifi.it
+#Milicia Lorenzo - lorenzo.milicia1@stud.unifi.it
 
 
 .data
@@ -145,7 +147,7 @@ callProcedure:
 	
 	move $t2, $t1			#uso $t2 come appoggio per la lettera che ho trovato
 	beq $t2, 'd', isDivision	#salto alla procedura 'divisione'
-	beq $t2, 'p', isMultiplication	#salto alla procedura 'moltiplicazione'
+	beq $t2, 'p', isMultiplication	#salto alla procedura 'prodotto'
 	lb $t2, 2($t0) 			#mi sposto di 2 byte/caratteri (SOmma e SOttrazione hanno le prime due
 					#lettere uguali, la terza mi rivela che operazione devo fare)
 					
@@ -160,8 +162,7 @@ exit:
 
 
 #isSum, isSubtraction ecc consentono di richiamare la procedura da eseguire. In $v0 verrà salvato il valore di
-#ritorno che in base
-#a $s0 sarà salvato in $t8 (primo operando) o $t9 (secondo operando)
+#ritorno che in base a $s0 sarà salvato in $t8 (primo operando) o $t9 (secondo operando)
 
 isSum:
 
