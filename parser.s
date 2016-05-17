@@ -39,9 +39,7 @@ main:
 	lw $ra, 0($sp)		#ripristino l'indirizzo di ritorno
 	addi $sp, $sp, 4	#e dealloco lo stack
 	
-	li $v0, 10
-	syscall
-	jr $ra			#terminazione del programma
+	jr $ra			#terminazione del programma, ritorno a procedura chiamante di QTSpim
 
 exitForError:
 	#ho letto una divisione per 0, esco con un messaggio di errore
@@ -157,6 +155,8 @@ callProcedure:
 exit:
 	#se sono qui la procedura chiamante a cui ritorno dev'essere main e in $ra ho già ripristinato
 	#l'indirizzo di ritorno
+	#devo togliere lo spazio usato per il registro $s0
+	addi $sp, $sp, 4
 	jr $ra
 
 
@@ -484,15 +484,15 @@ exitLoopTab:
 	addi $a0, $zero, 32
 	syscall
 	
-loopPrimoCiclo:
+loopPrimoCiclo:		#il primo ciclo stampa la sottostringa esistente fino alla prima parentesi tonda
 
-	lb  $s1, 0($s0)			#leggo un carattere
+	lb  $s1, 0($s0)			# $s1 = carattere letto
 	li $v0, 11			#stampo il carattere letto
 	move $a0, $s1
 	syscall
 	beq $s1, '(', exitLoop1		#controllo se ho letto una '(' .Se l'ho letta salto a 'exitLoop1'
 	addi $s0, $s0, 1
-	j loopPrimoCiclo		#salto alla procedura 'loopPrimoCiclo'
+	j loopPrimoCiclo		#rieseguo il ciclo di lettura e stampa
 	
 exitLoop1:
 
@@ -502,25 +502,25 @@ exitLoop1:
 loopSecondoCiclo:
 
 	ble $s2, 0, exitLoop2		#esci dal ciclo se contatore <= 0
-	lb  $s1, 0($s0)			#leggo un carattere
+	lb  $s1, 0($s0)			# $s1 = carattere letto
 	li $v0, 11			#stampo il carattere letto
 	move $a0, $s1
 	syscall
 	addi $s0, $s0, 1		#incremento il puntatore
-	beq $s1, ')', decremento	#controllo se ho letto una ')'. Se l'ho letta salto alla procedura 'decremento'
-	beq $s1, '(', incremento	#controllo se ho letto una '('. Se l'ho letta salto alla procedura 'incremento'
-	beq $s1, $zero, exitLoop2	#controllo se ho letto uno zero. Se l'ho letta salto alla procedura 'exitLoop2'
-	j loopSecondoCiclo		#salto alla procedura 'loopSecondoCiclo'
+	beq $s1, ')', decremento	# se ho letto una ')' devo decrementare il contatore di parentesi
+	beq $s1, '(', incremento	# se ho letto una '(' devo incrementare il contatore di parentesi
+	beq $s1, $zero, exitLoop2	# se ho letto zero la stringa è terminata, quindi esco dal ciclo
+	j loopSecondoCiclo		# rieseguo il ciclo di lettura e stampa
 		
 incremento:
 
-	addi $s2, $s2, 1		#incremento il contatore
-	j loopSecondoCiclo		#salto alla procedura 'loopSecondoCiclo'
+	addi $s2, $s2, 1		#incremento il contatore di parentesi
+	j loopSecondoCiclo		# rieseguo il ciclo di lettura e stampa
 	
 decremento:
 
 	addi $s2, $s2, -1		#decremento il contatore
-	j loopSecondoCiclo		#salto alla procedura 'loopSecondoCiclo'
+	j loopSecondoCiclo		# rieseguo il ciclo di lettura e stampa
 		
 exitLoop2:
 
