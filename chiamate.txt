@@ -1,1 +1,1 @@
-prodotto(34,2)
+prodotto(3,3)
