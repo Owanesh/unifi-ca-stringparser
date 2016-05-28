@@ -2,6 +2,8 @@
 #Busiello Salvatore - salvatore.busiello@stud.unifi.it
 #Milicia Lorenzo - lorenzo.milicia1@stud.unifi.it
 
+# Data di consegna: 28/05/2016
+
 
 .data
 
@@ -64,7 +66,7 @@ parsing:
 					#raggiunto la virgola ovviamente)
 				
 	move $s0, $zero			#inizializzo la variabile flag $s0
-	move $t8, $zero			#$t8 e $t9 conterranno i 2 operandi
+	move $t8, $zero			#$t8 e $t9 conterranno i 2 operandi, li inizializzo a zero
 	move $t9, $zero
 
 loopParsing:
@@ -102,7 +104,7 @@ loopParsing:
 	j loopParsing
 	
 flagNegativo:
-	#$t4 è la variabile flag che mi dice di moltiplicare per -1 il prossimo operando che leggo
+	#$t4 è la variabile flag che, quando è uguale a 1, mi dice di moltiplicare per -1 il prossimo operando che leggo
 	
 	addi $t4, $t4, 1
 	addi $a0, $a0, 1	#procedo a prossimo carattere
@@ -156,7 +158,6 @@ exit:
 	#se sono qui la procedura chiamante a cui ritorno dev'essere main e in $ra ho già ripristinato
 	#l'indirizzo di ritorno
 	#devo togliere lo spazio usato per il registro $s0
-	lw $ra , 0($sp)
 	addi $sp, $sp, 4
 	jr $ra
 
