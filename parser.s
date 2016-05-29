@@ -161,6 +161,7 @@ exit:
 	#se sono qui la procedura chiamante a cui ritorno dev'essere main e in $ra ho già ripristinato
 	#l'indirizzo di ritorno
 	#devo togliere lo spazio usato per il registro $s0
+	lw $s0, 0 ($sp)
 	addi $sp, $sp, 4
 	jr $ra
 
